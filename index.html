@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Drive-Thru Inteligente</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; color: #333; margin: 0; padding: 0; }
+    header { background: #008CBA; color: #fff; padding: 20px; text-align: center; }
+    main { max-width: 900px; margin: 20px auto; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h1, h2 { margin-top: 0; }
+    .windows { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+    .window { border-radius: 10px; padding: 15px; text-align: center; transition: 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .free { background: #d4edda; color: #155724; }
+    .occupied { background: #f8d7da; color: #721c24; }
+    .attendant { background: #fff3cd; color: #856404; }
+    #suggestions-section { margin-top: 30px; }
+    #closing-timer { margin-top: 10px; font-weight: bold; }
+    footer { text-align: center; margin: 20px 0; font-size: 0.9rem; color: #777; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Drive-Thru Inteligente</h1>
+  <div id="closing-timer">Carregando horário...</div>
+</header>
+
+<main>
+  <h2>Estado Atual das Janelas</h2>
+  <div class="windows" id="windows-container">
+    <!-- Janelas serão inseridas aqui -->
+  </div>
+
+  <section id="suggestions-section">
+    <h2>Sugestões Inteligentes</h2>
+    <div id="suggestions">Carregando sugestões...</div>
+  </section>
+</main>
+
+<footer>
+  Drive-Thru &copy; 2025
+</footer>
+
+<script>
+  const windows = [
+    { id: 1, occupied: false, attendantOut: false },
+    { id: 2, occupied: false, attendantOut: false },
+    { id: 3, occupied: false, attendantOut: false },
+    { id: 4, occupied: false, attendantOut: false }
+  ];
+
+  function renderWindows() {
+    const container = document.getElementById('windows-container');
+    container.innerHTML = '';
+    windows.forEach(w => {
+      let statusClass = w.attendantOut ? 'attendant' : (w.occupied ? 'occupied' : 'free');
+      let statusText = w.attendantOut ? 'Atendente Ausente' : (w.occupied ? 'Ocupado' : 'Livre');
+      container.innerHTML += `
+        <div class="window ${statusClass}">
+          <h3>Janela ${w.id}</h3>
+          <p>${statusText}</p>
+        </div>
+      `;
+    });
+  }
+
+  function updateClosingTimer() {
+    const now = new Date();
+    const closingTime = new Date();
+    closingTime.setHours(2, 0, 0, 0); 
+    if (now.getHours() < 2) {
+      // It's after midnight but before 2am
+    } else {
+      closingTime.setDate(closingTime.getDate() + 1); 
+    }
+    const diffMs = closingTime - now;
+    const diffH = Math.floor(diffMs / 3600000);
+    const diffM = Math.floor((diffMs % 3600000) / 60000);
+
+    const timer = document.getElementById('closing-timer');
+    timer.innerHTML = `Faltam ${diffH}h ${diffM}min para fechar`;
+
+    if (diffH === 0 && diffM <= 60) {
+      timer.style.color = 'red';
+    } else {
+      timer.style.color = '#fff';
+    }
+  }
+
+  function updateSuggestions() {
+    const suggestionsDiv = document.getElementById('suggestions');
+    const free = windows.filter(w => !w.occupied && !w.attendantOut);
+    let suggestion = '';
+
+    if (free.length > 0) {
+      suggestion += `👉 Vá para a <strong>janela ${free[0].id}</strong>, está disponível agora.<br>`;
+    } else {
+      suggestion += `👉 Todas as janelas estão ocupadas ou sem atendente.<br>`;
+    }
+
+    const now = new Date();
+    const h = now.getHours();
+    if (h >= 11 && h <= 14) {
+      suggestion += `👉 Horário de maior movimento (almoço).<br>`;
+    } else if (h >= 18 && h <= 20) {
+      suggestion += `👉 Horário de maior movimento (jantar).<br>`;
+    } else {
+      suggestion += `👉 Bom horário para atendimento rápido.<br>`;
+    }
+
+    suggestionsDiv.innerHTML = suggestion;
+  }
+
+  async function fetchStatus() {
+    try {
+      const response = await fetch('/status');
+      const data = await response.json();
+      windows[0].occupied = data.janela1.ocupado;
+      windows[0].attendantOut = data.janela1.atendenteFora;
+      windows[1].occupied = data.janela2.ocupado;
+      windows[1].attendantOut = data.janela2.atendenteFora;
+      windows[2].occupied = data.janela3.ocupado;
+      windows[2].attendantOut = data.janela3.atendenteFora;
+      windows[3].occupied = data.janela4.ocupado;
+      windows[3].attendantOut = data.janela4.atendenteFora;
+      renderWindows();
+      updateSuggestions();
+    } catch (e) {
+      console.error('Erro ao buscar dados:', e);
+    }
+  }
+
+  renderWindows();
+  fetchStatus();
+  updateClosingTimer();
+  setInterval(fetchStatus, 1000);
+  setInterval(updateClosingTimer, 60000);
+</script>
+
+</body>
+</html>
